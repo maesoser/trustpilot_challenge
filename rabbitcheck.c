@@ -4,7 +4,16 @@
 #include <stdint.h>
 #include <pthread.h>
 
+#define ANSI_COLOR_RED     "\x1b[31m"
+#define ANSI_COLOR_GREEN   "\x1b[32m"
+#define ANSI_COLOR_YELLOW  "\x1b[33m"
+#define ANSI_COLOR_BLUE    "\x1b[34m"
+#define ANSI_COLOR_MAGENTA "\x1b[35m"
+#define ANSI_COLOR_CYAN    "\x1b[36m"
+#define ANSI_COLOR_RESET "\x1b[0m"
+
 #define MAX_WORD_SIZE 64
+#define MD5_SIZE 16
 // leftrotate function definition
 #define LEFTROTATE(x, c) (((x) << (c)) | ((x) >> (32 - (c))))
     
@@ -162,36 +171,37 @@ void printHex(unsigned char *digest){
 //unsigned int checkHashes(int spos,int psize,int tsize,char **earr){
 void  *checkHashes(void *context){
 	thread_arg_t *targs = context;
-	unsigned char easyhash[16] = {0xE4, 0x82, 0x0b, 0x45, 0xd2, 0x27, 0x7f, 0x38, 0x44, 0xea, 0xc6, 0x6c, 0x90, 0x3e, 0x84, 0xbe};
-	unsigned char mediumhash[16] = {0x23, 0x17, 0x0a, 0xcc, 0x09, 0x7c, 0x24, 0xed, 0xb9, 0x8f, 0xc5, 0x48, 0x8a, 0xb0, 0x33, 0xfe};
-	unsigned char hardhash[16] = {0x66, 0x5e, 0x5b, 0xcb, 0x0c, 0x20, 0x06, 0x2f, 0xe8, 0xab, 0xaa, 0xf4, 0x62, 0x8b, 0xb1, 0x54};
+	unsigned char easyhash[MD5_SIZE] = {0xE4, 0x82, 0x0b, 0x45, 0xd2, 0x27, 0x7f, 0x38, 0x44, 0xea, 0xc6, 0x6c, 0x90, 0x3e, 0x84, 0xbe};
+	unsigned char mediumhash[MD5_SIZE] = {0x23, 0x17, 0x0a, 0xcc, 0x09, 0x7c, 0x24, 0xed, 0xb9, 0x8f, 0xc5, 0x48, 0x8a, 0xb0, 0x33, 0xfe};
+	unsigned char hardhash[MD5_SIZE] = {0x66, 0x5e, 0x5b, 0xcb, 0x0c, 0x20, 0x06, 0x2f, 0xe8, 0xab, 0xaa, 0xf4, 0x62, 0x8b, 0xb1, 0x54};
 	int x,y,z;
 	for(x=targs->spos;x< targs->spos + targs->psize;x++){
 		for(y=0;y<targs->tsize;y++){
 			for(z=0;z<targs->tsize;z++){
 				size_t sz = snprintf(NULL,0,"%s %s %s",strtok(targs->earr[x],"\n"),strtok(targs->earr[y],"\n"),strtok(targs->earr[z],"\n"));
-				char *sentence = (char *)malloc(sz+1);
-				snprintf(sentence,sz+1,"%s %s %s",strtok(targs->earr[x],"\n"),strtok(targs->earr[y],"\n"),strtok(targs->earr[z],"\n"));
-				unsigned char digest[16];
-				md5(sentence, sz, digest);
-				//printf("%s = ",sentence);
-				//printHex(digest);
-				//printf("\n");
-				if (memcmp(digest, easyhash, 16)==0){
-					printf("EASY HASH FOUND  : %s\n",sentence);
+				if(sz<22 && sz >19){
+					char *sentence = (char *)malloc(sz+1);
+					snprintf(sentence,sz+1,"%s %s %s",strtok(targs->earr[x],"\n"),strtok(targs->earr[y],"\n"),strtok(targs->earr[z],"\n"));
+					unsigned char digest[MD5_SIZE];
+					md5(sentence, sz, digest);
+					//printf("%s = ",sentence);
+					//printHex(digest);
+					//printf("\n");
+					if (memcmp(digest, easyhash, MD5_SIZE)==0){
+						printf("%d %d %d"ANSI_COLOR_GREEN" EASY HASH FOUND  : %s"ANSI_COLOR_RESET"\n",x,y,z,sentence);
+					}
+					else if (memcmp(digest, mediumhash, MD5_SIZE)==0){
+						printf("%d %d %d"ANSI_COLOR_YELLOW" MEDIUM HASH FOUND  : %s"ANSI_COLOR_RESET"\n",x,y,z,sentence);
+					}
+					else if (memcmp(digest, hardhash, MD5_SIZE)==0){
+						printf("%d %d %d"ANSI_COLOR_RED" HARD HASH FOUND  : %s"ANSI_COLOR_RESET"\n",x,y,z,sentence);
+					}
+					free(sentence);
 				}
-				else if (memcmp(digest, mediumhash, 16)==0){
-					printf("MEDIUM HASH FOUND: %s\n",sentence);
-				}
-				else if (memcmp(digest, hardhash, 16)==0){
-					printf("HARD HASH FOUND  : %s\n",sentence);
-				}
-				free(sentence);
 			}
 		}
 	}
-	printf("Thread finished\n");
-	return NULL;
+	pthread_exit(0);
 }
 
 int main(int argc, char **argv){
@@ -201,7 +211,10 @@ int main(int argc, char **argv){
 		exit(-1);
 	}
 	nproc = atoi(argv[2]);
-
+	if(nproc==1){
+		printf("Minium thread number is 2.\n");
+		exit(-1);
+	}
 	fp = fopen(argv[1], "r");
 	while(fgets(buff, MAX_WORD_SIZE, (FILE*)fp)!=NULL)	wlen++;
 	printf("wordlist \"%s\" has %d words\n",argv[1],wlen);
@@ -216,24 +229,24 @@ int main(int argc, char **argv){
 		index++;
 	}
 	fclose(fp);
-	//printf("Starting %d threads.\n",nproc);
+
 	int spos = 0;
 	int chunksize = wlen/nproc;
 	pthread_t thid[nproc];
+	thread_arg_t targsArray[nproc];
 	int err;
 	for(n=0;n<nproc;n++){
-		thread_arg_t targs;
-		targs.spos = spos+1;
+		targsArray[n].spos = spos;
 		if(n==nproc-1){
-			targs.psize = (wlen -(chunksize*(nproc-1)))-1;
+			targsArray[n].psize = wlen -(chunksize*(nproc-1));
 		}else{ 
-			targs.psize = chunksize-1;
+			targsArray[n].psize = chunksize;
 		}
-		targs.tsize = wlen;
-		targs.earr = words;
-		printf("Starting thread %d, computing array from %d to %d\n",n,targs.spos,targs.spos+targs.psize);
-		err = pthread_create(&(thid[n]), NULL, checkHashes, &targs);
-        if (err != 0) printf("\ncan't create thread %d: %s", n, strerror(err));
+		targsArray[n].tsize = wlen;
+		targsArray[n].earr = words;
+		printf("Starting thread %d, computing array from %d to %d\n",n,targsArray[n].spos,targsArray[n].spos+targsArray[n].psize);
+		err = pthread_create(&(thid[n]), NULL, checkHashes, &targsArray[n]);
+        if (err != 0) printf("\n"ANSI_COLOR_RED"can't create thread %d: %s"ANSI_COLOR_RESET, n, strerror(err));
 		spos = spos + chunksize;	
 	}
 	for(n=0;n<nproc;n++){
