@@ -26,9 +26,26 @@ Now that we have the reduced dictionary we need to make all the combinations pos
 > The MD5 hash of the hard secret phrase is "665e5bcb0c20062fe8abaaf4628bb154"
 
 This part is very straight forward. The only interesting thing here it's that we used pthreads to parallelize the checking part. In fact, there are some improvements that could have been implemented:
-- Check if three word sentence exceeds the length of the anagram. In that case the sentence could be discarded without computing and checking the md5 hash.
+- ~~Check if three word sentence exceeds the length of the anagram. In that case the sentence could be discarded without computing and checking the md5 hash.~~
 - Check if some of the characters of the whole sentence exceeds the number of appearances, just like I did on the filtering phase, but with the whole sentence.
 
 ### Results
 
 With this code and a pretty powerful multicore computer I was able to obtain the medium and the easiest hash. The hardest though, escaped from my algorithm.
+
+### Where is the third hash
+
+I've some ideas about where to find the third hash:
+
+- We assume the solution had three words. That's true for the two first hashes but the third one could be hidden behind a two words sentence or a four words sentence
+
+### Using hashcat
+
+Instead of using my little program we could use [hashcat](https://hashcat.net/hashcat/). Hashcat is a password recovery tool which perform bruteforcing similar to the code I wrote, but it has some advantages like the use of GPU for fastest hash calculation.
+
+```
+echo e4820b45d2277f3844eac66c903e84be > hashes.txt
+echo 23170acc097c24edb98fc5488ab033fe >> hashes.txt
+echo 665e5bcb0c20062fe8abaaf4628bb154 >> hashes.txt
+hashcat -m 0 -a 0 hashes.txt (and something more here)
+```
