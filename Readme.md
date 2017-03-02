@@ -29,6 +29,8 @@ This part is very straight forward. The only interesting thing here it's that we
 - ~~Check if three word sentence exceeds the length of the anagram. In that case the sentence could be discarded without computing and checking the md5 hash.~~
 - Check if some of the characters of the whole sentence exceeds the number of appearances, just like I did on the filtering phase, but with the whole sentence.
 
+I did some benchmarks (nothing too scientific) using four cores of an i7-3770 @ 3.40GHz. It did 400.000 comparisons in 2 seconds. That is 50.000 md5's/sec per core. This is fast or slow? Well, Openssl (`openssl speed md5`) did roughly 4 millions md5's/sec on the same machine so I think there is room for improvements, although I suspect openssl uses some sort of ultra low level Tntel tricks and speciallized hardware to speed up the hashing.
+
 ### Results
 
 With this code and a pretty powerful multicore computer I was able to obtain the medium and the easiest hash. The hardest though, escaped from my algorithm.
